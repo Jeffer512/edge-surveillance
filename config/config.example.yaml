@@ -1,0 +1,31 @@
+camera:
+  # 0 = webcam, or http://127.0.0.1:8080/video (IP Webcam), rtsp://..., path/to/video.mp4
+  source: "0"
+  width: 640
+  height: 480
+  fps: 15
+
+motion:
+  min_change_percent: 1.5
+  threshold: 25
+  min_area: 800
+  cooldown_s: 0.5
+
+detector:
+  model: "models/face_detection_yunet.onnx"
+  score_threshold: 0.8
+  nms_threshold: 0.3
+  input_size: [320, 320]
+
+recognizer:
+  model: "models/mobilefacenet.onnx"
+  similarity_threshold: 0.5
+
+events:
+  dir: "data/events"
+  known_cooldown_s: 30.0
+  unknown_cooldown_s: 60.0
+
+server:
+  host: "127.0.0.1"
+  port: 8000

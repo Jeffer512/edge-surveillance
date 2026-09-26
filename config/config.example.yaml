@@ -8,7 +8,9 @@ camera:
 motion:
   min_change_percent: 1.5
   threshold: 25
-  min_area: 800
+  min_area_percent: 1.0
+  probe_width: 320
+  probe_height: 240
   cooldown_s: 0.5
 
 detector:

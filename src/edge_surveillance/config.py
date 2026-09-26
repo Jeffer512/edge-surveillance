@@ -37,7 +37,9 @@ class CameraConfig:
 class MotionConfig:
     min_change_percent: float = 1.5
     threshold: int = 25
-    min_area: int = 800
+    min_area_percent: float = 1.0
+    probe_width: int = 320
+    probe_height: int = 240
     cooldown_s: float = 0.5
 
     def __post_init__(self) -> None:
@@ -45,8 +47,10 @@ class MotionConfig:
             raise ValueError(f"min_change_percent must be in (0, 100], got {self.min_change_percent}")
         if not 0 < self.threshold < 256:
             raise ValueError(f"threshold must be in (0, 256), got {self.threshold}")
-        if self.min_area < 0:
-            raise ValueError(f"min_area must be >= 0, got {self.min_area}")
+        if not 0 < self.min_area_percent <= 100:
+            raise ValueError(f"min_area_percent must be in (0, 100], got {self.min_area_percent}")
+        if self.probe_width <= 0 or self.probe_height <= 0:
+            raise ValueError(f"probe size must be > 0, got {self.probe_width}x{self.probe_height}")
         if self.cooldown_s < 0:
             raise ValueError(f"cooldown_s must be >= 0, got {self.cooldown_s}")
 

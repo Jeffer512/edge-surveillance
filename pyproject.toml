@@ -16,6 +16,7 @@ dependencies = [
 
 [project.scripts]
 edge-enroll = "edge_surveillance.cli.enroll:main"
+edge-run = "edge_surveillance.cli.run:main"
 
 [dependency-groups]
 dev = [

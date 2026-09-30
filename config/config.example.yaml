@@ -18,6 +18,9 @@ detector:
   score_threshold: 0.8
   nms_threshold: 0.3
   input_size: [320, 320]
+  # How long a face box stays on screen after the last motion frame that
+  # produced it. 0 disables the hold and boxes vanish as soon as motion stops.
+  report_ttl_s: 2.0
 
 recognizer:
   model: "models/mobilefacenet.onnx"
@@ -27,6 +30,10 @@ events:
   dir: "data/events"
   known_cooldown_s: 30.0
   unknown_cooldown_s: 60.0
+
+store:
+  gallery: "data/embeddings.pkl"
+  events_db: "data/events.db"
 
 server:
   host: "127.0.0.1"

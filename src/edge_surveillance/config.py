@@ -65,6 +65,7 @@ class DetectorConfig:
     score_threshold: float = 0.8
     nms_threshold: float = 0.3
     input_size: tuple[int, int] = (320, 320)
+    report_ttl_s: float = 2.0
 
     def __post_init__(self) -> None:
         if not 0 < self.score_threshold <= 1:
@@ -74,6 +75,8 @@ class DetectorConfig:
         w, h = self.input_size
         if w <= 0 or h <= 0:
             raise ValueError(f"input_size must be > 0, got {self.input_size}")
+        if self.report_ttl_s < 0:
+            raise ValueError(f"report_ttl_s must be >= 0, got {self.report_ttl_s}")
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> DetectorConfig:
@@ -113,6 +116,20 @@ class EventsConfig:
 
 
 @dataclass
+class StoreConfig:
+    gallery: str = "data/embeddings.pkl"
+    events_db: str = "data/events.db"
+
+    def __post_init__(self) -> None:
+        if not self.gallery.strip() or not self.events_db.strip():
+            raise ValueError("store paths must be non-empty")
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> StoreConfig:
+        return cls(**_reject_unknown(cls, dict(data), "store"))
+
+
+@dataclass
 class ServerConfig:
     host: str = "127.0.0.1"
     port: int = 8000
@@ -133,6 +150,7 @@ class AppConfig:
     detector: DetectorConfig = None  # type: ignore[assignment]
     recognizer: RecognizerConfig = None  # type: ignore[assignment]
     events: EventsConfig = None  # type: ignore[assignment]
+    store: StoreConfig = None  # type: ignore[assignment]
     server: ServerConfig = None  # type: ignore[assignment]
 
     def __post_init__(self) -> None:
@@ -147,13 +165,15 @@ class AppConfig:
             self.recognizer = RecognizerConfig()
         if self.events is None:
             self.events = EventsConfig()
+        if self.store is None:
+            self.store = StoreConfig()
         if self.server is None:
             self.server = ServerConfig()
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> AppConfig:
         data = dict(data or {})
-        known = {"camera", "motion", "detector", "recognizer", "events", "server"}
+        known = {"camera", "motion", "detector", "recognizer", "events", "store", "server"}
         unknown = set(data) - known
         if unknown:
             raise TypeError(f"Unknown top-level config sections: {sorted(unknown)}")
@@ -163,6 +183,7 @@ class AppConfig:
             detector=DetectorConfig.from_dict(data.get("detector", {})),
             recognizer=RecognizerConfig.from_dict(data.get("recognizer", {})),
             events=EventsConfig.from_dict(data.get("events", {})),
+            store=StoreConfig.from_dict(data.get("store", {})),
             server=ServerConfig.from_dict(data.get("server", {})),
         )
 

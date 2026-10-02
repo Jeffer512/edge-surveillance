@@ -84,6 +84,31 @@ def test_refresh_picks_up_external_write(store, tmp_path):
     assert store.refresh() is False
 
 
+def test_concurrent_removes_do_not_lose_updates(tmp_path):
+    """The server deletes people while the pipeline refreshes; without the
+    store's lock an interleaved read-build-save drops one of the two."""
+    import threading
+
+    path = tmp_path / "gallery.pkl"
+    store = GalleryStore(path)
+    for i in range(20):
+        store.add(f"p{i}", [_vec(float(i), 1.0)])
+
+    def drop(offset: int) -> None:
+        for i in range(offset, 20, 2):
+            try:
+                store.remove(f"p{i}")
+            except KeyError:
+                pass
+
+    threads = [threading.Thread(target=drop, args=(o,)) for o in (0, 1)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert store.list_people() == []
+
+
 def test_gallery_equality_is_identity(store):
     store.add("ann", [_vec(1, 0)])
     assert store.current == store.current

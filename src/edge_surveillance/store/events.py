@@ -56,6 +56,14 @@ class EventStore:
         keys = ("id", "ts", "type", "name", "score", "path")
         return [dict(zip(keys, row, strict=True)) for row in rows]
 
+    def get(self, event_id: int) -> dict | None:
+        keys = ("id", "ts", "type", "name", "score", "path")
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT id, ts, type, name, score, path FROM events WHERE id = ?", (event_id,)
+            ).fetchone()
+        return dict(zip(keys, row, strict=True)) if row else None
+
     def count_since(self, ts: float) -> int:
         with self._lock:
             return self._conn.execute(

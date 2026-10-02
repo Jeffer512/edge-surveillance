@@ -1,5 +1,6 @@
 import os
 import pickle
+import threading
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -50,15 +51,21 @@ def _load(path: Path) -> Gallery:
 
 
 class GalleryStore:
-    """Single-writer owner of the enrolled gallery for a long-lived process.
+    """Owner of the enrolled gallery for a long-lived process.
 
-    All mutations go through _commit, which writes to disk before swapping
+    Every mutation goes through _commit, which writes to disk before swapping
     the in-memory value, so a crash can never leave memory ahead of disk.
     Out-of-process writes (the enroll CLI) are picked up by refresh().
+
+    Mutators take a lock because two threads can now write: the pipeline
+    enrolling or expiring, and the web server deleting a person. Without it
+    an interleaved read-build-save would silently drop one of the two.
+    Reads stay lock-free: a single attribute read is already atomic.
     """
 
     def __init__(self, path: str | Path) -> None:
         self._path = Path(path)
+        self._lock = threading.Lock()
         self._current = _load(self._path) if self._path.is_file() else Gallery()
         self._mtime = self._stat()
 
@@ -81,37 +88,40 @@ class GalleryStore:
 
     def refresh(self) -> bool:
         """Reload from disk if it changed outside this process."""
-        mtime = self._stat()
-        if mtime != self._mtime:
-            self._current = _load(self._path) if self._path.is_file() else Gallery()
-            self._mtime = mtime
-            return True
-        return False
+        with self._lock:
+            mtime = self._stat()
+            if mtime != self._mtime:
+                self._current = _load(self._path) if self._path.is_file() else Gallery()
+                self._mtime = mtime
+                return True
+            return False
 
     def add(self, name: str, embeddings: list[np.ndarray]) -> None:
         """Average embeddings into a single row for one person."""
         mean = l2_normalize(np.mean(np.stack(embeddings), axis=0))
-        cur = self._current
-        if cur.embeddings.size and mean.size != cur.embeddings.shape[1]:
-            raise ValueError(f"embedding dim {mean.size} != gallery dim {cur.embeddings.shape[1]}")
-        row = mean.reshape(1, -1).astype(np.float32)
-        stacked = row if not cur.embeddings.size else np.vstack([cur.embeddings, row])
-        self._commit(
-            Gallery(names=(*cur.names, name), embeddings=stacked.astype(np.float32))
-        )
+        with self._lock:
+            cur = self._current
+            if cur.embeddings.size and mean.size != cur.embeddings.shape[1]:
+                raise ValueError(
+                    f"embedding dim {mean.size} != gallery dim {cur.embeddings.shape[1]}"
+                )
+            row = mean.reshape(1, -1).astype(np.float32)
+            stacked = row if not cur.embeddings.size else np.vstack([cur.embeddings, row])
+            self._commit(Gallery(names=(*cur.names, name), embeddings=stacked.astype(np.float32)))
 
     def remove(self, name: str) -> None:
         """Drop a person. KeyError when not enrolled."""
-        cur = self._current
-        if name not in cur.names:
-            raise KeyError(f"unknown person: {name!r}")
-        keep = [i for i, n in enumerate(cur.names) if n != name]
-        self._commit(
-            Gallery(
-                names=tuple(cur.names[i] for i in keep),
-                embeddings=cur.embeddings[keep].astype(np.float32),
+        with self._lock:
+            cur = self._current
+            if name not in cur.names:
+                raise KeyError(f"unknown person: {name!r}")
+            keep = [i for i, n in enumerate(cur.names) if n != name]
+            self._commit(
+                Gallery(
+                    names=tuple(cur.names[i] for i in keep),
+                    embeddings=cur.embeddings[keep].astype(np.float32),
+                )
             )
-        )
 
     def match(self, query: np.ndarray, threshold: float) -> tuple[str, float]:
         return cosine_match(query, self._current.embeddings, list(self._current.names), threshold)

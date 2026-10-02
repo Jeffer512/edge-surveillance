@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:,">
+<title>Edge Surveillance</title>
+<style>
+  :root {
+      --bg: #0F172A;
+      --card: #111827;
+      --muted: #1E293B;
+      --border: #334155;
+      --fg: #F8FAFC;
+      --fg-muted: #CBD5E1;
+      --ok: #22C55E;
+      --accent: #16A34A;
+      --danger: #DC2626;
+      --warn: #F59E0B;
+      --radius: 8px;
+      --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+
+  * {
+      box-sizing: border-box;
+  }
+
+  body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--fg);
+      font: 16px/1.5 var(--sans);
+      min-height: 100vh;
+  }
+
+  header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      padding: 12px 20px;
+      border-bottom: 1px solid var(--border);
+      background: var(--card);
+  }
+
+  h1 {
+      font-size: 1.0625rem;
+      margin: 0;
+      font-weight: 600;
+      letter-spacing: .01em;
+  }
+
+  .status {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: .8125rem;
+      color: var(--fg-muted);
+  }
+
+  .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--fg-muted);
+  }
+
+  .dot.live {
+      background: var(--ok);
+      box-shadow: 0 0 10px rgba(34, 197, 94, .7);
+  }
+
+  .dot.stale {
+      background: var(--warn);
+  }
+
+  .dot.down {
+      background: var(--danger);
+  }
+
+  nav {
+      display: flex;
+      gap: 4px;
+      padding: 0 20px;
+      border-bottom: 1px solid var(--border);
+      background: var(--card);
+  }
+
+  nav button {
+      appearance: none;
+      border: 0;
+      background: none;
+      color: var(--fg-muted);
+      font: inherit;
+      font-size: .875rem;
+      padding: 12px 16px;
+      min-height: 44px;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+  }
+
+  nav button:hover {
+      color: var(--fg);
+  }
+
+  nav button[aria-selected="true"] {
+      color: var(--fg);
+      border-bottom-color: var(--accent);
+  }
+
+  nav button:focus-visible,
+  .btn:focus-visible,
+  a:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+  }
+
+  main {
+      padding: 20px;
+      max-width: 1400px;
+      margin: 0 auto;
+  }
+
+  .panel[hidden] {
+      display: none;
+  }
+
+  .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+  }
+
+  .grid {
+      display: grid;
+      gap: 16px;
+      grid-template-columns: minmax(0, 1fr);
+  }
+
+  @media (min-width: 1024px) {
+      .grid {
+          grid-template-columns: minmax(0, 3fr) minmax(0, 1fr);
+      }
+  }
+
+  .feed {
+      display: block;
+      width: 100%;
+      background: #000;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      aspect-ratio: 4 / 3;
+      object-fit: contain;
+  }
+
+  .feed.offline {
+      display: none;
+  }
+
+  .placeholder {
+      display: grid;
+      place-items: center;
+      aspect-ratio: 4 / 3;
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      color: var(--fg-muted);
+      font-size: .875rem;
+      text-align: center;
+      padding: 24px;
+  }
+
+  .placeholder[hidden] {
+      display: none;
+  }
+
+  dl.metrics {
+      margin: 0;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px 16px;
+      font-size: .875rem;
+  }
+
+  dl.metrics dt {
+      color: var(--fg-muted);
+  }
+
+  dl.metrics dd {
+      margin: 0;
+      font-family: var(--mono);
+      text-align: right;
+  }
+
+  h2 {
+      font-size: .9375rem;
+      margin: 0 0 12px;
+      font-weight: 600;
+  }
+
+  table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: .875rem;
+  }
+
+  /* Table is wider than a phone; without this the overflow scrolls the page. */
+  .tablewrap {
+      overflow: auto hidden;
+  }
+
+  th,
+  td {
+      text-align: left;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+  }
+
+  th {
+      color: var(--fg-muted);
+      font-weight: 600;
+      font-size: .75rem;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+  }
+
+  td.time {
+      white-space: nowrap;
+  }
+
+  td.score,
+  th.score {
+      text-align: right;
+      font-family: var(--mono);
+  }
+
+  td.person {
+      max-width: 8rem;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+  }
+
+  .card-events {
+      position: relative;
+  }
+
+  .coltoggle {
+      position: absolute;
+      top: 10px;
+      right: 14px;
+      appearance: none;
+      border: 0;
+      background: none;
+      padding: 4px 6px;
+      color: var(--fg-muted);
+      font: inherit;
+      font-size: .875rem;
+      line-height: 1;
+      cursor: pointer;
+      min-height: 24px;
+      min-width: 24px;
+      display: none;
+      border-radius: var(--radius);
+      transition: color .15s ease, background-color .15s ease;
+  }
+
+  .coltoggle:hover {
+      color: var(--fg);
+      background: var(--muted);
+  }
+
+  .coltoggle:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+  }
+
+  @media (max-width: 640px) {
+
+      th.type,
+      td.type {
+          display: none;
+      }
+
+      th.score,
+      td.score {
+          display: none;
+      }
+
+      body.show-score th.score,
+      body.show-score td.score {
+          display: table-cell;
+      }
+
+      .coltoggle {
+          display: inline-block;
+      }
+
+      .thumb {
+          width: 48px;
+          height: 36px;
+      }
+
+      td.person {
+          max-width: 6rem;
+      }
+  }
+
+  tbody tr:hover {
+      background: var(--muted);
+  }
+
+  .empty,
+  .error {
+      color: var(--fg-muted);
+      font-size: .875rem;
+      padding: 16px 0;
+  }
+
+  .error {
+      color: var(--danger);
+  }
+
+  .pill {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: .75rem;
+      font-weight: 600;
+      border: 1px solid currentColor;
+  }
+
+  .pill.known {
+      color: var(--ok);
+  }
+
+  .pill.unknown {
+      color: var(--danger);
+  }
+
+  ul.people {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+  }
+
+  ul.people li {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border);
+  }
+
+  ul.people li:last-child {
+      border-bottom: 0;
+  }
+
+  ul.people .name {
+      flex: 1;
+      min-width: 0;
+      overflow-wrap: anywhere;
+      font-size: .9375rem;
+  }
+
+  .btn {
+      appearance: none;
+      cursor: pointer;
+      font: inherit;
+      font-size: .8125rem;
+      min-height: 44px;
+      padding: 0 14px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: var(--muted);
+      color: var(--fg);
+  }
+
+  .btn:hover {
+      background: var(--border);
+  }
+
+  .btn.danger {
+      border-color: var(--danger);
+      color: var(--danger);
+      background: none;
+  }
+
+  .btn.danger:hover {
+      background: rgba(220, 38, 38, .12);
+  }
+
+  .btn[disabled] {
+      opacity: .5;
+      cursor: not-allowed;
+  }
+
+  .thumb {
+      width: 64px;
+      height: 48px;
+      object-fit: cover;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      display: block;
+  }
+
+  .muted {
+      color: var(--fg-muted);
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+      button,
+      .btn,
+      tr,
+      .pill {
+          transition: background-color .15s ease, color .15s ease;
+      }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Edge Surveillance</h1>
+  <div class="status">
+    <span class="dot" id="dot" role="status" aria-live="polite"></span>
+    <span id="statusText">Connecting…</span>
+  </div>
+</header>
+
+<nav role="tablist" aria-label="Sections">
+  <button role="tab" id="tab-live" aria-controls="panel-live" aria-selected="true">Live</button>
+  <button role="tab" id="tab-events" aria-controls="panel-events" aria-selected="false">Events</button>
+  <button role="tab" id="tab-people" aria-controls="panel-people" aria-selected="false">People</button>
+</nav>
+
+<main>
+  <section class="panel" id="panel-live" role="tabpanel" aria-labelledby="tab-live">
+    <div class="grid">
+      <div class="card">
+        <img class="feed" id="feed" alt="Live camera feed with face detection overlays">
+        <div class="placeholder" id="noFeed">Waiting for the camera pipeline to publish a frame.</div>
+      </div>
+      <div class="card">
+        <h2>Status</h2>
+        <dl class="metrics">
+          <dt>Processing rate</dt><dd id="mFps">—</dd>
+          <dt>Motion</dt><dd id="mMotion">—</dd>
+          <dt>Faces in frame</dt><dd id="mFaces">—</dd>
+          <dt>Last frame</dt><dd id="mAge">—</dd>
+          <dt>Enrolled</dt><dd id="mPeople">—</dd>
+        </dl>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-events" role="tabpanel" aria-labelledby="tab-events" hidden>
+    <div class="card card-events">
+      <h2>Recent events <span class="muted">newest first</span></h2>
+      <button id="scoreToggle" type="button" class="coltoggle" aria-pressed="false"
+        aria-label="Show score" aria-controls="eventsTable">→</button>
+      <div id="eventsWrap">
+        <p class="empty">Loading…</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-people" role="tabpanel" aria-labelledby="tab-people" hidden>
+    <div class="card">
+      <h2>Enrolled people</h2>
+      <div id="peopleWrap"><p class="empty">Loading…</p></div>
+      <p class="muted" style="font-size:.8125rem">Enroll with <code>edge-enroll &lt;name&gt; &lt;photo&gt;</code>.</p>
+    </div>
+  </section>
+</main>
+
+<script>
+const API = {
+  stream: "/video_feed",
+  state: "/api/state",
+  events: "/api/events?limit=50",
+  people: "/api/people",
+  eventImage: (id) => `/api/events/${id}/image`,
+  deletePerson: (name) => `/api/people/${encodeURIComponent(name)}`,
+};
+
+const $ = (id) => document.getElementById(id);
+// Fixed options: the default reorders per locale (en-GB gives 21/01/1970).
+const fmtTime = (ts) => new Date(ts * 1000).toLocaleString(undefined, {
+  month: "2-digit", day: "2-digit",
+  hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false,
+});
+const fmtAge = (s) => (s == null ? "—" : s < 1 ? "now" : `${s.toFixed(1)}s ago`);
+
+const TABS = [["live", "tab-live", "panel-live"], ["events", "tab-events", "panel-events"],
+              ["people", "tab-people", "panel-people"]];
+let activeTab = "live";
+for (const [name, tabId, panelId] of TABS) {
+  $(tabId).addEventListener("click", () => {
+    for (const [, t, p] of TABS) {
+      const active = t === tabId;
+      $(t).setAttribute("aria-selected", String(active));
+      $(p).hidden = !active;
+    }
+    activeTab = name;
+    $("feed").src = name === "live" ? API.stream : "";
+    if (name === "events") loadEvents();
+    if (name === "people") loadPeople();
+  });
+}
+
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) {
+    $("feed").src = "";
+    clearTimeout(pollTimer);
+  } else {
+    if (activeTab === "live") {
+      $("feed").src = API.stream;
+    }
+    startPolling();
+  }
+});
+
+async function getJSON(url) {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+  return res.json();
+}
+
+async function pollState() {
+  try {
+    const s = await getJSON(API.state);
+    const dot = $("dot");
+    dot.className = "dot " + (!s.connected ? "down" : "live");
+    $("statusText").textContent = s.connected
+      ? `Live · updated ${fmtAge(s.age_s)}`
+      : s.captured_at == null ? "Waiting for pipeline" : "Stale — no recent frame";
+    $("mFps").textContent = s.fps ? `${s.fps.toFixed(1)} fps` : "—";
+    $("mMotion").textContent = `${s.motion_percent.toFixed(2)}%`;
+    $("mFaces").textContent = String(s.faces.length);
+    $("mAge").textContent = fmtAge(s.age_s);
+    $("feed").hidden = s.captured_at == null;
+    $("noFeed").hidden = s.captured_at != null;
+    return s.connected;   // drives the poll backoff in pollLoop
+  } catch (e) {
+    $("statusText").textContent = `Server unreachable (${e.message})`;
+    $("dot").className = "dot down";
+    return false;
+  }
+}
+
+async function loadEvents() {
+  const wrap = $("eventsWrap");
+  try {
+    const rows = await getJSON(API.events);
+    if (!rows.length) { wrap.innerHTML = '<p class="empty">No events recorded yet.</p>'; return; }
+    const body = rows.map((r) => `
+      <tr>
+        <td>${r.path ? `<img class="thumb" src="${API.eventImage(r.id)}" alt="Snapshot for event ${r.id}" loading="lazy">` : ""}</td>
+        <td class="time">${fmtTime(r.ts)}</td>
+        <td class="type"><span class="pill ${r.type}">${r.type}</span></td>
+        <td class="person" title="${escapeHTML(r.name ?? "")}">${escapeHTML(r.name ?? "—")}</td>
+        <td class="score">${r.score.toFixed(3)}</td>
+      </tr>`).join("");
+    const scoreOn = document.body.classList.contains("show-score");
+    wrap.innerHTML = `<div class="tablewrap"><table id="eventsTable">
+      <thead><tr><th>Snapshot</th><th>Time</th><th class="type">Type</th>
+      <th>Person</th><th class="score">Score</th></tr></thead>
+      <tbody>${body}</tbody></table></div>`;
+    if (scoreOn) scrollTableToEnd(wrap);
+  } catch (e) {
+    wrap.innerHTML = `<p class="error">Could not load events: ${escapeHTML(e.message)}</p>`;
+  }
+}
+
+async function loadPeople() {
+  const wrap = $("peopleWrap");
+  try {
+    const names = await getJSON(API.people);
+    if (!names.length) { wrap.innerHTML = '<p class="empty">Nobody enrolled yet.</p>'; return; }
+    wrap.innerHTML = `<ul class="people">${names.map((n) => `
+      <li><span class="name">${escapeHTML(n)}</span>
+        <button class="btn danger" data-name="${escapeHTML(n)}">Remove</button></li>`).join("")}</ul>`;
+    for (const btn of wrap.querySelectorAll("button[data-name]")) {
+      btn.addEventListener("click", () => removePerson(btn));
+    }
+  } catch (e) {
+    wrap.innerHTML = `<p class="error">Could not load people: ${escapeHTML(e.message)}</p>`;
+  }
+}
+
+async function removePerson(btn) {
+  const name = btn.dataset.name;
+  btn.disabled = true;
+  try {
+    const res = await fetch(API.deletePerson(name), { method: "DELETE" });
+    if (!res.ok) throw new Error(`${res.status}`);
+    await loadPeople();
+  } catch (e) {
+    btn.disabled = false;
+    alert(`Could not remove ${name}: ${e.message}`);
+  }
+}
+
+function scrollTableToEnd(wrap) {
+  const box = wrap.querySelector(".tablewrap");
+  if (box) box.scrollTo({ left: box.scrollWidth, behavior: "smooth" });
+}
+
+// Wired once: the button lives outside #eventsWrap, which innerHTML replaces.
+const scoreBtn = $("scoreToggle");
+function syncScoreToggle() {
+  const on = document.body.classList.contains("show-score");
+  scoreBtn.setAttribute("aria-pressed", String(on));
+  scoreBtn.setAttribute("aria-label", on ? "Hide score" : "Show score");
+  scoreBtn.textContent = on ? "←" : "→";
+}
+scoreBtn.addEventListener("click", () => {
+  document.body.classList.toggle("show-score");
+  syncScoreToggle();
+  if (document.body.classList.contains("show-score")) scrollTableToEnd($("eventsWrap"));
+});
+syncScoreToggle();
+
+// Names are user input; unescaped they inject script via innerHTML.
+function escapeHTML(s) {
+  return String(s).replace(/[&<>"']/g, (c) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+}
+
+window.addEventListener("load", () => { $("feed").src = API.stream; });
+
+// Chained, not setInterval: only one /api/state request can be in flight.
+const POLL_MS = 1000;
+const POLL_IDLE_MS = 10000;
+let pollTimer = null;
+
+async function pollLoop() {
+  if (document.hidden) return;
+  const connected = await pollState();
+  pollTimer = setTimeout(pollLoop, connected ? POLL_MS : POLL_IDLE_MS);
+}
+
+function startPolling() {
+  clearTimeout(pollTimer);
+  pollTimer = setTimeout(pollLoop, 0);
+}
+
+startPolling();
+</script>
+</body>
+</html>

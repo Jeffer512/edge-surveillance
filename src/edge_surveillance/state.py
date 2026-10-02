@@ -17,9 +17,8 @@ class FaceReport:
 class FrameState:
     """One published frame plus what the pipeline saw in it.
 
-    The frame is kept raw: the server encodes it to JPEG on demand, and
-    structured face boxes let the UI draw its own overlay. The pipeline
-    never writes into a published frame, so readers need no lock.
+    frame is made read-only so a reader cannot mutate the snapshot the
+    other readers are holding.
     """
 
     captured_at: float
@@ -27,6 +26,9 @@ class FrameState:
     faces: tuple[FaceReport, ...] = ()
     motion_percent: float = 0.0
     fps: float = 0.0
+
+    def __post_init__(self) -> None:
+        self.frame.setflags(write=False)
 
 
 class SharedState:

@@ -18,9 +18,7 @@ logger = logging.getLogger(__name__)
 
 UNKNOWN = "Unknown"
 _LOG_INTERVAL_S = 10.0
-# Consecutive motion-frames with zero detections tolerated before the held
-# reports clear. Masks single detector misses (profile view, occlusion) while
-# letting real departures read truthfully within ~1/3s at 15fps.
+# Tolerates single detector misses (profile, occlusion) before reports clear.
 _MAX_MISS_FRAMES = 5
 
 

@@ -11,7 +11,6 @@ dependencies = [
     "onnxruntime",
     "fastapi",
     "uvicorn",
-    "requests",
 ]
 
 [project.scripts]
@@ -22,6 +21,7 @@ edge-run = "edge_surveillance.cli.run:main"
 dev = [
     "pytest",
     "ruff",
+    "httpx2",
 ]
 
 [build-system]

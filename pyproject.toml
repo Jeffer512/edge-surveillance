@@ -5,12 +5,13 @@ description = "Motion detection + face recognition (MobileFaceNet) for PC and Te
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-    "opencv-python>=4.5.4",
-    "numpy",
-    "pyyaml",
-    "onnxruntime",
-    "fastapi",
-    "uvicorn",
+    # Termux installs these with `pkg`; PC is capped to match so the test suite
+    # exercises the same OpenCV major as the phone. Re-check when Termux moves.
+    "opencv-python>=4.14,<5",
+    # floors are the oldest releases that still install on Python 3.10
+    "numpy>=2.2.6,<3",
+    "pyyaml>=6.0.3,<7",
+    "onnxruntime>=1.23.2,<2",
 ]
 
 [project.scripts]
@@ -18,11 +19,21 @@ edge-enroll = "edge_surveillance.cli.enroll:main"
 edge-run = "edge_surveillance.cli.run:main"
 
 [dependency-groups]
-dev = [
-    "pytest",
-    "ruff",
-    "httpx2",
+# A group, not [project.optional-dependencies]: groups install standalone, so a
+# Termux-style install never re-resolves numpy/opencv/onnxruntime from PyPI.
+server = [
+    "fastapi>=0.142.2,<0.143",
+    "uvicorn>=0.54.0,<0.55",
 ]
+dev = [
+    "pytest>=9.1.1,<10",
+    "ruff>=0.16.9,<0.17",
+    "httpx2>=2.13.1,<3",   # starlette's TestClient imports httpx2
+    { include-group = "server" },
+]
+
+[tool.uv]
+default-groups = ["dev"]
 
 [build-system]
 requires = ["hatchling"]

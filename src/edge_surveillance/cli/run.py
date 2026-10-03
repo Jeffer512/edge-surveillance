@@ -3,15 +3,12 @@ import logging
 import sys
 import threading
 
-import uvicorn
-
 from edge_surveillance.camera.stream_reader import StreamReader
 from edge_surveillance.config import load_config
 from edge_surveillance.core.face_detector import YuNetDetector
 from edge_surveillance.core.face_recognizer import MobileFaceNetRecognizer
 from edge_surveillance.core.motion_detector import MotionDetector
 from edge_surveillance.pipeline import SurveillancePipeline
-from edge_surveillance.server.app import create_app
 from edge_surveillance.state import SharedState
 from edge_surveillance.store.events import EventStore
 from edge_surveillance.store.gallery import GalleryStore
@@ -75,6 +72,11 @@ def main(argv: list[str] | None = None) -> int:
         finally:
             events.close()
         return 0
+
+
+    import uvicorn
+
+    from edge_surveillance.server.app import create_app
 
     # uvicorn must own the main thread: signal handlers can only be
     # installed there, and it needs them for graceful shutdown on Ctrl-C.
